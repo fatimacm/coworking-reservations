@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
+from app.models import User 
 
 app = FastAPI(title="Coworking Reservations", version="1.0.0")
 
@@ -20,3 +21,8 @@ def test_db(db: Session = Depends(get_db)):
         return {"database": "connected"}
     except Exception as e:
         return {"database": "error", "details": str(e)}
+
+@app.get("/users-count")
+def count_users(db: Session = Depends(get_db)):
+    count = db.query(User).count()
+    return {"users_count": count, "table": "users table working!"}
