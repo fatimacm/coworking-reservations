@@ -25,7 +25,7 @@ def health_check():
 
 @app.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if a user with that email already exists
+
     db_user = get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(
@@ -56,6 +56,11 @@ def login_user(
         "access_token": access_token,
         "token_type": "bearer"
     }
+    
+    
+@app.get("/me", response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return current_user
 
 
 @app.get("/reservations", response_model=List[ReservationResponse])

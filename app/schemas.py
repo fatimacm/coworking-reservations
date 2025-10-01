@@ -1,7 +1,9 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from datetime import datetime
 from typing import Optional, List
 from enum import Enum
+
+ORMConfig = ConfigDict(from_attributes=True)
 
 class RoleEnum(str, Enum):
     admin = "admin"
@@ -43,8 +45,7 @@ class ReservationResponse(BaseModel):
     status: StatusEnum
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ORMConfig
 
 class ReservationUpdate(BaseModel):
     space_name: Optional[SpaceEnum] = None
@@ -62,5 +63,4 @@ class UserResponse(BaseModel):
     updated_at: Optional[datetime] = None
     reservations: Optional[List[ReservationResponse]] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ORMConfig

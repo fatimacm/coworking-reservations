@@ -55,7 +55,7 @@ def update_reservation(db: Session, reservation_id: int, reservation_update: Res
         return None
     
     
-    for field, value in reservation_update.dict(exclude_unset=True).items():
+    for field, value in reservation_update.model_dump(exclude_unset=True).items():
         if hasattr(db_reservation, field):
             if field == "space_name" and value:
                 setattr(db_reservation, field, value.value)
