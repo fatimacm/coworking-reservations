@@ -106,17 +106,13 @@ def update_my_reservation(
     return reservation
 
 @app.delete("/reservations/{reservation_id}", response_model=ReservationResponse)
-def cancel_reservation(reservation_id: int, db: Session = Depends(get_db)):
-    reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
+def cancel_my_reservation(
+    reservation_id: int,
+    current_user: User = Depends(get_current_user),  
+    db: Session = Depends(get_db)
+):
 
+    reservation = delete_reservation(db, reservation_id, current_user.id)
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
-
-    if reservation.status == "cancelled":
-        return reservation  
-
-    reservation.status = "cancelled"
-    db.commit()
-    db.refresh(reservation)
-
     return reservation
