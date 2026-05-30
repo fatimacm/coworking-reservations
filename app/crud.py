@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models import User, Reservation
 from app.schemas import UserCreate, UserLogin, ReservationCreate, ReservationUpdate
 from app.security import hash_password, verify_password
+from app.validators import validate_reservation_time
 
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
@@ -38,6 +39,12 @@ def get_reservation_by_id(db: Session, reservation_id: int, user_id: int):
     ).first()
 
 def create_reservation(db: Session, reservation: ReservationCreate, user_id: int):
+    
+    validate_reservation_time(
+        reservation.start_datetime,
+        reservation.end_datetime
+    )
+    
     db_reservation = Reservation(
         user_id=user_id,
         space_name=reservation.space_name.value,  
@@ -70,7 +77,7 @@ def delete_reservation(db: Session, reservation_id: int, user_id: int):
 
     db_reservation = get_reservation_by_id(db, reservation_id, user_id)
     if not db_reservation:
-        return False
+        return None
     
     db_reservation.status = "cancelled"
     db.commit()
@@ -81,7 +88,7 @@ def reactivate_reservation(db: Session, reservation_id: int, user_id: int):
     
     db_reservation = get_reservation_by_id(db, reservation_id, user_id)
     if not db_reservation or db_reservation.status != "cancelled":
-        return False
+        return None
     
     db_reservation.status = "active"
     db.commit()
