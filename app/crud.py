@@ -3,6 +3,7 @@ from app.models import User, Reservation
 from app.schemas import UserCreate, UserLogin, ReservationCreate, ReservationUpdate
 from app.security import hash_password, verify_password
 from app.validators import validate_reservation_time
+from app.validators import validate_reservation_time, validate_no_overlap
 
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
@@ -45,6 +46,14 @@ def create_reservation(db: Session, reservation: ReservationCreate, user_id: int
         reservation.end_datetime
     )
     
+    validate_no_overlap(
+        db=db,
+        user_id=user_id,
+        space_name=reservation.space_name.value,
+        start_datetime=reservation.start_datetime,
+        end_datetime=reservation.end_datetime
+    )
+    
     db_reservation = Reservation(
         user_id=user_id,
         space_name=reservation.space_name.value,  
@@ -68,6 +77,20 @@ def update_reservation(db: Session, reservation_id: int, reservation_update: Res
                 setattr(db_reservation, field, value.value)
             else:
                 setattr(db_reservation, field, value)
+                
+    validate_reservation_time(
+        db_reservation.start_datetime,
+        db_reservation.end_datetime
+    )
+
+    validate_no_overlap(
+        db=db,
+        user_id=user_id,
+        space_name=db_reservation.space_name,
+        start_datetime=db_reservation.start_datetime,
+        end_datetime=db_reservation.end_datetime,
+        reservation_id=reservation_id
+    )
     
     db.commit()
     db.refresh(db_reservation)

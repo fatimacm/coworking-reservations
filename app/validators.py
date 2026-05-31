@@ -2,6 +2,9 @@
 
 from datetime import datetime, time
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from app.models import Reservation
 
 BUSINESS_OPEN = time(8, 0)
 BUSINESS_CLOSE = time(20, 0)
@@ -46,4 +49,38 @@ def validate_reservation_time(start_datetime: datetime, end_datetime: datetime):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Maximum reservation duration is 8 hours."
+        )
+        
+def validate_no_overlap(
+    db: Session,
+    user_id: int,
+    space_name: str,
+    start_datetime,
+    end_datetime,
+    reservation_id: int | None = None
+):
+    query = db.query(Reservation).filter(
+        Reservation.status == "active",
+        Reservation.start_datetime < end_datetime,
+        Reservation.end_datetime > start_datetime,
+        or_(
+            Reservation.space_name == space_name,
+            Reservation.user_id == user_id
+        )
+    )
+
+    if reservation_id is not None:
+        query = query.filter(Reservation.id != reservation_id)
+
+    existing_reservation = query.first()
+
+    if existing_reservation:
+        if existing_reservation.space_name == space_name:
+            detail = "This space is already reserved during the selected time range."
+        else:
+            detail = "User already has another reservation during the selected time range."
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail
         )
