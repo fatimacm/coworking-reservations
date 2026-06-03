@@ -2,8 +2,7 @@ from sqlalchemy.orm import Session
 from app.models import User, Reservation
 from app.schemas import UserCreate, UserLogin, ReservationCreate, ReservationUpdate
 from app.security import hash_password, verify_password
-from app.validators import validate_reservation_time
-from app.validators import validate_reservation_time, validate_no_overlap
+from app.validators import validate_reservation_time, validate_no_overlap, normalize_datetime
 
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
@@ -40,29 +39,34 @@ def get_reservation_by_id(db: Session, reservation_id: int, user_id: int):
     ).first()
 
 def create_reservation(db: Session, reservation: ReservationCreate, user_id: int):
-    
+
+    start_datetime = normalize_datetime(reservation.start_datetime)
+    end_datetime = normalize_datetime(reservation.end_datetime)
+
     validate_reservation_time(
-        reservation.start_datetime,
-        reservation.end_datetime
+        start_datetime,
+        end_datetime
     )
-    
+
     validate_no_overlap(
         db=db,
         user_id=user_id,
         space_name=reservation.space_name.value,
-        start_datetime=reservation.start_datetime,
-        end_datetime=reservation.end_datetime
+        start_datetime=start_datetime,
+        end_datetime=end_datetime
     )
-    
+
     db_reservation = Reservation(
         user_id=user_id,
-        space_name=reservation.space_name.value,  
-        start_datetime=reservation.start_datetime,
-        end_datetime=reservation.end_datetime
+        space_name=reservation.space_name.value,
+        start_datetime=start_datetime,
+        end_datetime=end_datetime
     )
+
     db.add(db_reservation)
     db.commit()
     db.refresh(db_reservation)
+
     return db_reservation
 
 def update_reservation(db: Session, reservation_id: int, reservation_update: ReservationUpdate, user_id: int):

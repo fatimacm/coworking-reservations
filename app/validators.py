@@ -11,8 +11,13 @@ BUSINESS_CLOSE = time(20, 0)
 MIN_DURATION_MINUTES = 30
 MAX_DURATION_MINUTES = 8 * 60
 
+def normalize_datetime(dt: datetime) -> datetime:
+    return dt.replace(second=0, microsecond=0)
 
 def validate_reservation_time(start_datetime: datetime, end_datetime: datetime):
+    start_datetime = start_datetime.replace(microsecond=0)
+    end_datetime = end_datetime.replace(microsecond=0)
+
     if end_datetime <= start_datetime:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
