@@ -1,145 +1,175 @@
-import pytest
-from datetime import datetime, timedelta
 from uuid import uuid4
+
 
 def unique_email():
     return f"user_{uuid4().hex[:8]}@example.com"
 
+
 def unique_username(prefix="user"):
     return f"{prefix}_{uuid4().hex[:6]}"
 
+
 def create_authenticated_user(client, prefix="test"):
-    """Helper para crear usuario y obtener token"""
     email = unique_email()
     username = unique_username(prefix)
-    
+
     client.post("/register", json={
         "email": email,
         "username": username,
         "password": "testpass123"
     })
-    
+
     login = client.post("/login", data={
         "username": email,
         "password": "testpass123"
     })
+
     token = login.json()["access_token"]
+
     return {"Authorization": f"Bearer {token}"}
+
 
 def test_create_reservation(client):
     headers = create_authenticated_user(client, "reserve")
-    
-    start = datetime.utcnow() + timedelta(hours=1)
-    end = start + timedelta(hours=2)
-    
-    response = client.post("/reservations", 
+
+    response = client.post(
+        "/reservations",
         headers=headers,
         json={
             "space_name": "meeting_room_a",
-            "start_datetime": start.isoformat(),
-            "end_datetime": end.isoformat()
+            "start_datetime": "2026-06-10T08:00:00Z",
+            "end_datetime": "2026-06-10T10:00:00Z"
         }
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["space_name"] == "meeting_room_a"
     assert data["status"] == "active"
 
+
 def test_get_my_reservations(client):
     headers = create_authenticated_user(client, "getres")
-    
-    start = datetime.utcnow() + timedelta(hours=1)
-    
-    # Crear 2 reservas
-    for i in range(2):
-        client.post("/reservations", 
+
+    reservations = [
+        {
+            "space_name": "desk_1",
+            "start_datetime": "2026-06-11T08:00:00Z",
+            "end_datetime": "2026-06-11T09:00:00Z"
+        },
+        {
+            "space_name": "desk_1",
+            "start_datetime": "2026-06-12T08:00:00Z",
+            "end_datetime": "2026-06-12T09:00:00Z"
+        }
+    ]
+
+    for reservation in reservations:
+        response = client.post(
+            "/reservations",
             headers=headers,
-            json={
-                "space_name": "desk_1",
-                "start_datetime": (start + timedelta(days=i)).isoformat(),
-                "end_datetime": (start + timedelta(days=i, hours=1)).isoformat()
-            }
+            json=reservation
         )
-    
+        assert response.status_code == 201
+
     response = client.get("/reservations", headers=headers)
+
     assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 2
+    assert len(response.json()) == 2
+
 
 def test_update_reservation(client):
     headers = create_authenticated_user(client, "update")
-    
-    start = datetime.utcnow() + timedelta(hours=1)
-    
-    # Crear reserva
-    create_response = client.post("/reservations", 
+
+    create_response = client.post(
+        "/reservations",
         headers=headers,
         json={
             "space_name": "meeting_room_a",
-            "start_datetime": start.isoformat(),
-            "end_datetime": (start + timedelta(hours=1)).isoformat()
+            "start_datetime": "2026-06-13T08:00:00Z",
+            "end_datetime": "2026-06-13T09:00:00Z"
         }
     )
+
+    assert create_response.status_code == 201
     reservation_id = create_response.json()["id"]
-    
-    # Actualizar a otro espacio
-    response = client.put(f"/reservations/{reservation_id}",
+
+    response = client.put(
+        f"/reservations/{reservation_id}",
         headers=headers,
-        json={"space_name": "meeting_room_b"}
+        json={
+            "space_name": "meeting_room_b"
+        }
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["space_name"] == "meeting_room_b"
 
+
 def test_cancel_reservation(client):
     headers = create_authenticated_user(client, "cancel")
-    
-    start = datetime.utcnow() + timedelta(hours=1)
-    
-    # Crear reserva
-    create_response = client.post("/reservations", 
+
+    create_response = client.post(
+        "/reservations",
         headers=headers,
         json={
             "space_name": "conference_hall",
-            "start_datetime": start.isoformat(),
-            "end_datetime": (start + timedelta(hours=2)).isoformat()
+            "start_datetime": "2026-06-14T08:00:00Z",
+            "end_datetime": "2026-06-14T10:00:00Z"
         }
     )
+
+    assert create_response.status_code == 201
     reservation_id = create_response.json()["id"]
-    
-    # Cancelar (soft delete)
-    response = client.delete(f"/reservations/{reservation_id}", headers=headers)
+
+    response = client.delete(
+        f"/reservations/{reservation_id}",
+        headers=headers
+    )
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "cancelled"
-    
-    # Verificar que no aparece en lista de activas
-    all_reservations = client.get("/reservations", headers=headers)
-    assert len(all_reservations.json()) == 0
-    
-    # Pero sí aparece si incluimos canceladas
-    with_cancelled = client.get("/reservations?include_cancelled=true", headers=headers)
+
+    active_reservations = client.get(
+        "/reservations",
+        headers=headers
+    )
+
+    assert active_reservations.status_code == 200
+    assert len(active_reservations.json()) == 0
+
+    with_cancelled = client.get(
+        "/reservations?include_cancelled=true",
+        headers=headers
+    )
+
+    assert with_cancelled.status_code == 200
     assert len(with_cancelled.json()) == 1
 
+
 def test_user_cannot_access_other_user_reservation(client):
-    # Usuario 1 crea reserva
     headers1 = create_authenticated_user(client, "user1")
-    start = datetime.utcnow() + timedelta(hours=1)
-    
-    create_response = client.post("/reservations", 
+
+    create_response = client.post(
+        "/reservations",
         headers=headers1,
         json={
             "space_name": "desk_1",
-            "start_datetime": start.isoformat(),
-            "end_datetime": (start + timedelta(hours=1)).isoformat()
+            "start_datetime": "2026-06-15T08:00:00Z",
+            "end_datetime": "2026-06-15T09:00:00Z"
         }
     )
+
+    assert create_response.status_code == 201
     reservation_id = create_response.json()["id"]
-    
-    # Usuario 2 intenta acceder a esa reserva
+
     headers2 = create_authenticated_user(client, "user2")
-    response = client.get(f"/reservations/{reservation_id}", headers=headers2)
-    
-    assert response.status_code == 404  # No debe poder verla
+
+    response = client.get(
+        f"/reservations/{reservation_id}",
+        headers=headers2
+    )
+
+    assert response.status_code == 404
