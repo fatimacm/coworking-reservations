@@ -1,6 +1,6 @@
 # app/validators.py
 
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -15,9 +15,20 @@ MAX_DAILY_DURATION_MINUTES = 8 * 60
 def normalize_datetime(dt: datetime) -> datetime:
     return dt.replace(second=0, microsecond=0)
 
+def validate_not_in_past(start_datetime: datetime):
+    now = datetime.now(start_datetime.tzinfo)
+
+    if start_datetime < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reservations cannot be created in the past."
+        )
+
 def validate_reservation_time(start_datetime: datetime, end_datetime: datetime):
     start_datetime = normalize_datetime(start_datetime)
     end_datetime = normalize_datetime(end_datetime)
+    
+    validate_not_in_past(start_datetime)
 
     if end_datetime <= start_datetime:
         raise HTTPException(
