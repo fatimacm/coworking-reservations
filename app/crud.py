@@ -2,7 +2,12 @@ from sqlalchemy.orm import Session
 from app.models import User, Reservation
 from app.schemas import UserCreate, UserLogin, ReservationCreate, ReservationUpdate
 from app.security import hash_password, verify_password
-from app.validators import validate_reservation_time, validate_no_overlap, normalize_datetime
+from app.validators import (
+    normalize_datetime,
+    validate_reservation_time,
+    validate_no_overlap,
+    validate_daily_reservation_limit
+)
 
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
@@ -56,6 +61,13 @@ def create_reservation(db: Session, reservation: ReservationCreate, user_id: int
         end_datetime=end_datetime
     )
 
+    validate_daily_reservation_limit(
+    db=db,
+    user_id=user_id,
+    start_datetime=start_datetime,
+    end_datetime=end_datetime
+    )
+    
     db_reservation = Reservation(
         user_id=user_id,
         space_name=reservation.space_name.value,
@@ -79,8 +91,19 @@ def update_reservation(db: Session, reservation_id: int, reservation_update: Res
         if hasattr(db_reservation, field):
             if field == "space_name" and value:
                 setattr(db_reservation, field, value.value)
+            elif field == "status" and value:
+                setattr(db_reservation, field, value.value)
             else:
                 setattr(db_reservation, field, value)
+    
+    db_reservation.start_datetime = normalize_datetime(
+        db_reservation.start_datetime
+    )
+
+    db_reservation.end_datetime = normalize_datetime(
+        db_reservation.end_datetime
+    )
+    
                 
     validate_reservation_time(
         db_reservation.start_datetime,
@@ -94,6 +117,14 @@ def update_reservation(db: Session, reservation_id: int, reservation_update: Res
         start_datetime=db_reservation.start_datetime,
         end_datetime=db_reservation.end_datetime,
         reservation_id=reservation_id
+    )
+    
+    validate_daily_reservation_limit(
+    db=db,
+    user_id=user_id,
+    start_datetime=db_reservation.start_datetime,
+    end_datetime=db_reservation.end_datetime,
+    reservation_id=reservation_id
     )
     
     db.commit()

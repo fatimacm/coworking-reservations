@@ -10,13 +10,14 @@ BUSINESS_OPEN = time(8, 0)
 BUSINESS_CLOSE = time(20, 0)
 MIN_DURATION_MINUTES = 30
 MAX_DURATION_MINUTES = 8 * 60
+MAX_DAILY_DURATION_MINUTES = 8 * 60
 
 def normalize_datetime(dt: datetime) -> datetime:
     return dt.replace(second=0, microsecond=0)
 
 def validate_reservation_time(start_datetime: datetime, end_datetime: datetime):
-    start_datetime = start_datetime.replace(microsecond=0)
-    end_datetime = end_datetime.replace(microsecond=0)
+    start_datetime = normalize_datetime(start_datetime)
+    end_datetime = normalize_datetime(end_datetime)
 
     if end_datetime <= start_datetime:
         raise HTTPException(
@@ -88,4 +89,52 @@ def validate_no_overlap(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=detail
+        )
+
+def validate_daily_reservation_limit(
+    db: Session,
+    user_id: int,
+    start_datetime: datetime,
+    end_datetime: datetime,
+    reservation_id: int | None = None
+):
+    day_start = start_datetime.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    day_end = start_datetime.replace(
+        hour=23,
+        minute=59,
+        second=59,
+        microsecond=999999
+    )
+
+    query = db.query(Reservation).filter(
+        Reservation.user_id == user_id,
+        Reservation.status == "active",
+        Reservation.start_datetime >= day_start,
+        Reservation.start_datetime <= day_end
+    )
+
+    if reservation_id is not None:
+        query = query.filter(Reservation.id != reservation_id)
+
+    existing_reservations = query.all()
+
+    existing_minutes = sum(
+        (reservation.end_datetime - reservation.start_datetime).total_seconds() / 60
+        for reservation in existing_reservations
+    )
+
+    new_minutes = (end_datetime - start_datetime).total_seconds() / 60
+
+    total_minutes = existing_minutes + new_minutes
+
+    if total_minutes > MAX_DAILY_DURATION_MINUTES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Daily reservation limit exceeded. Users cannot reserve more than 8 hours per day."
         )

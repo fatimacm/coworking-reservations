@@ -51,7 +51,6 @@ class ReservationUpdate(BaseModel):
     space_name: Optional[SpaceEnum] = None
     start_datetime: Optional[datetime] = None
     end_datetime: Optional[datetime] = None
-    status: Optional[StatusEnum] = None
 
 class UserResponse(BaseModel):
     id: int
