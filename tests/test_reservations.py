@@ -1,32 +1,4 @@
-from uuid import uuid4
-
-
-def unique_email():
-    return f"user_{uuid4().hex[:8]}@example.com"
-
-
-def unique_username(prefix="user"):
-    return f"{prefix}_{uuid4().hex[:6]}"
-
-
-def create_authenticated_user(client, prefix="test"):
-    email = unique_email()
-    username = unique_username(prefix)
-
-    client.post("/register", json={
-        "email": email,
-        "username": username,
-        "password": "testpass123"
-    })
-
-    login = client.post("/login", data={
-        "username": email,
-        "password": "testpass123"
-    })
-
-    token = login.json()["access_token"]
-
-    return {"Authorization": f"Bearer {token}"}
+from tests.helpers import create_authenticated_user
 
 
 def test_create_reservation(client):

@@ -1,30 +1,17 @@
-def create_authenticated_user(client, email, username):
-    client.post("/register", json={
-        "email": email,
-        "username": username,
-        "password": "testpass123"
-    })
-
-    login = client.post("/login", data={
-        "username": email,
-        "password": "testpass123"
-    })
-
-    token = login.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+from tests.helpers import create_authenticated_user
 
 
 def test_reject_overlap_same_space_different_user(client):
     headers_user_1 = create_authenticated_user(
         client,
-        "space1@example.com",
-        "spaceuser1"
+        email="space1@example.com",
+        username="spaceuser1"
     )
 
     headers_user_2 = create_authenticated_user(
         client,
-        "space2@example.com",
-        "spaceuser2"
+        email="space2@example.com",
+        username="spaceuser2"
     )
 
     first = client.post(
@@ -50,14 +37,16 @@ def test_reject_overlap_same_space_different_user(client):
     )
 
     assert second.status_code == 409
-    assert second.json()["detail"] == "This space is already reserved during the selected time range."
+    assert second.json()["detail"] == (
+        "This space is already reserved during the selected time range."
+    )
 
 
 def test_reject_overlap_same_user_different_space(client):
     headers = create_authenticated_user(
         client,
-        "sameuser@example.com",
-        "sameuser"
+        email="sameuser@example.com",
+        username="sameuser"
     )
 
     first = client.post(
@@ -83,14 +72,16 @@ def test_reject_overlap_same_user_different_space(client):
     )
 
     assert second.status_code == 409
-    assert second.json()["detail"] == "User already has another reservation during the selected time range."
-    
-    
+    assert second.json()["detail"] == (
+        "User already has another reservation during the selected time range."
+    )
+
+
 def test_allow_consecutive_reservations(client):
     headers = create_authenticated_user(
         client,
-        "consecutive@example.com",
-        "consecutiveuser"
+        email="consecutive@example.com",
+        username="consecutiveuser"
     )
 
     first = client.post(
@@ -121,8 +112,8 @@ def test_allow_consecutive_reservations(client):
 def test_reject_daily_reservation_limit_exceeded(client):
     headers = create_authenticated_user(
         client,
-        "daily@example.com",
-        "dailyuser"
+        email="daily@example.com",
+        username="dailyuser"
     )
 
     first = client.post(
@@ -168,8 +159,8 @@ def test_reject_daily_reservation_limit_exceeded(client):
 def test_cancelled_reservations_do_not_count_toward_daily_limit(client):
     headers = create_authenticated_user(
         client,
-        "cancelledlimit@example.com",
-        "cancelledlimituser"
+        email="cancelledlimit@example.com",
+        username="cancelledlimituser"
     )
 
     first = client.post(
@@ -202,4 +193,4 @@ def test_cancelled_reservations_do_not_count_toward_daily_limit(client):
         }
     )
 
-    assert second.status_code == 201    
+    assert second.status_code == 201

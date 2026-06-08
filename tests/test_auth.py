@@ -1,12 +1,4 @@
-from uuid import uuid4
-
-
-def unique_email():
-    return f"user_{uuid4().hex[:8]}@example.com"
-
-
-def unique_username(prefix="user"):
-    return f"{prefix}_{uuid4().hex[:6]}"
+from tests.helpers import unique_email, unique_username
 
 
 def test_register_user(client):
@@ -66,9 +58,12 @@ def test_protected_endpoint(client):
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
 
-    response = client.get("/me", headers={
-        "Authorization": f"Bearer {token}"
-    })
+    response = client.get(
+        "/me",
+        headers={
+            "Authorization": f"Bearer {token}"
+        }
+    )
 
     assert response.status_code == 200
     data = response.json()
