@@ -16,6 +16,12 @@ def normalize_datetime(dt: datetime) -> datetime:
     return dt.replace(second=0, microsecond=0)
 
 def validate_not_in_past(start_datetime: datetime):
+    """
+    Ensures reservations cannot be created in the past.
+
+    Business rule:
+    - Reservation start time must be greater than the current date and time.
+    """
     now = datetime.now(start_datetime.tzinfo)
 
     if start_datetime < now:
@@ -25,6 +31,18 @@ def validate_not_in_past(start_datetime: datetime):
         )
 
 def validate_reservation_time(start_datetime: datetime, end_datetime: datetime):
+    """
+    Validates the temporal rules for a reservation.
+
+    Business rules:
+    - Reservations cannot be created in the past.
+    - Start and end times must belong to the same calendar day.
+    - Reservations must be within business hours (08:00–20:00).
+    - Minimum duration is 30 minutes.
+    - Maximum duration is 8 hours.
+    - End datetime must be after start datetime.
+    """
+    
     start_datetime = normalize_datetime(start_datetime)
     end_datetime = normalize_datetime(end_datetime)
     
@@ -76,6 +94,17 @@ def validate_no_overlap(
     end_datetime,
     reservation_id: int | None = None
 ):
+    """
+    Prevents reservation conflicts.
+
+    Business rules:
+    - A space cannot have overlapping active reservations.
+    - A user cannot have overlapping reservations, even in different spaces.
+    - Consecutive reservations are allowed when one reservation ends exactly when the next one begins.
+    - Cancelled reservations are ignored.
+    - When updating a reservation, the current reservation can be excluded from validation using reservation_id.
+    """
+    
     query = db.query(Reservation).filter(
         Reservation.status == "active",
         Reservation.start_datetime < end_datetime,
@@ -109,6 +138,16 @@ def validate_daily_reservation_limit(
     end_datetime: datetime,
     reservation_id: int | None = None
 ):
+    """
+    Enforces the maximum daily reservation limit per user.
+
+    Business rules:
+    - A user may reserve up to 8 hours per calendar day.
+    - Only active reservations are considered.
+    - Cancelled reservations do not count toward the limit.
+    - When updating a reservation, the current reservation can be excluded from the calculation using reservation_id.
+    """
+    
     day_start = start_datetime.replace(
         hour=0,
         minute=0,
