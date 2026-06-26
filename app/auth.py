@@ -14,8 +14,9 @@ if not SECRET_KEY:
     raise ValueError("SECRET_KEY not found in environment variables. Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'")
 
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+)
 
 def create_access_token(user: UserResponse, expires_delta: Optional[timedelta] = None) -> str:
     """
