@@ -181,25 +181,6 @@ def delete_reservation(db: Session, reservation_id: int, user_id: int):
     db.refresh(db_reservation)
     return db_reservation  
 
-def reactivate_reservation(db: Session, reservation_id: int, user_id: int):
-    """
-    Reactivates a previously cancelled reservation.
-
-    Business rules:
-    - Only cancelled reservations can be reactivated.
-    - Active reservations cannot be reactivated.
-    - Reservation ownership must be respected.
-    """
-    
-    db_reservation = get_reservation_by_id(db, reservation_id, user_id)
-    if not db_reservation or db_reservation.status != "cancelled":
-        return None
-    
-    db_reservation.status = "active"
-    db.commit()
-    db.refresh(db_reservation)
-    return db_reservation
-
 def get_user_reservations(db: Session, user_id: int, include_cancelled: bool = False):
     """
     Returns reservations belonging to a specific user.

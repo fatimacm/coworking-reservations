@@ -14,7 +14,11 @@ from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 
 
-app = FastAPI(title="Coworking Reservations", version="1.0.0")
+app = FastAPI(
+    title="Coworking Reservations",
+    version="1.0.0",
+    redoc_url=None
+)
 
 app.add_middleware(
     CORSMiddleware,
